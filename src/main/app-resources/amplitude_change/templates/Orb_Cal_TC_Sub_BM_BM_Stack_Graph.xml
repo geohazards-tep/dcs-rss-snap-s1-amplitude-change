@@ -74,66 +74,10 @@
       <outputBetaBand>false</outputBetaBand>
     </parameters>
   </node>
-  <node id="Subset">
-    <operator>Subset</operator>
-    <sources>
-      <sourceProduct refid="Calibration"/>
-    </sources>
-    <parameters class="com.bc.ceres.binding.dom.XppDomElement">
-      <sourceBands/>
-      <geoRegion>%%POLYGON_SUBSET%%</geoRegion>
-      <subSamplingX>1</subSamplingX>
-      <subSamplingY>1</subSamplingY>
-      <fullSwath>false</fullSwath>
-      <tiePointGridNames/>
-      <copyMetadata>true</copyMetadata>
-    </parameters>
-  </node>
-  <node id="Subset(2)">
-    <operator>Subset</operator>
-    <sources>
-      <sourceProduct refid="Calibration(2)"/>
-    </sources>
-    <parameters class="com.bc.ceres.binding.dom.XppDomElement">
-      <sourceBands/>
-      <geoRegion>%%POLYGON_SUBSET%%</geoRegion>
-      <subSamplingX>1</subSamplingX>
-      <subSamplingY>1</subSamplingY>
-      <fullSwath>false</fullSwath>
-      <tiePointGridNames/>
-      <copyMetadata>true</copyMetadata>
-    </parameters>
-  </node>
-  <node id="Multilook">
-    <operator>Multilook</operator>
-    <sources>
-      <sourceProduct refid="Subset"/>
-    </sources>
-    <parameters class="com.bc.ceres.binding.dom.XppDomElement">
-      <sourceBands/>
-      <nRgLooks>2</nRgLooks>
-      <nAzLooks>2</nAzLooks>
-      <outputIntensity>true</outputIntensity>
-      <grSquarePixel>true</grSquarePixel>
-    </parameters>
-  </node>
-  <node id="Multilook(2)">
-    <operator>Multilook</operator>
-    <sources>
-      <sourceProduct refid="Subset(2)"/>
-    </sources>
-    <parameters class="com.bc.ceres.binding.dom.XppDomElement">
-      <sourceBands/>
-      <nRgLooks>2</nRgLooks>
-      <nAzLooks>2</nAzLooks>
-      <outputIntensity>true</outputIntensity>
-      <grSquarePixel>true</grSquarePixel>
-    </parameters>
-  </node>
   <node id="Terrain-Correction">
     <operator>Terrain-Correction</operator>
     <sources>
-      <sourceProduct refid="Multilook"/>
+      <sourceProduct refid="Calibration"/>
     </sources>
     <parameters class="com.bc.ceres.binding.dom.XppDomElement">
       <sourceBands/>
@@ -166,7 +110,7 @@
   <node id="Terrain-Correction(2)">
     <operator>Terrain-Correction</operator>
     <sources>
-      <sourceProduct refid="Multilook(2)"/>
+      <sourceProduct refid="Calibration(2)"/>
     </sources>
     <parameters class="com.bc.ceres.binding.dom.XppDomElement">
       <sourceBands/>
@@ -196,10 +140,40 @@
       <externalAuxFile/>
     </parameters>
   </node>
+  <node id="Subset">
+    <operator>Subset</operator>
+    <sources>
+      <sourceProduct refid="Terrain-Correction"/>
+    </sources>
+    <parameters class="com.bc.ceres.binding.dom.XppDomElement">
+      <sourceBands/>
+      <geoRegion>%%POLYGON_SUBSET%%</geoRegion>
+      <subSamplingX>1</subSamplingX>
+      <subSamplingY>1</subSamplingY>
+      <fullSwath>false</fullSwath>
+      <tiePointGridNames/>
+      <copyMetadata>true</copyMetadata>
+    </parameters>
+  </node>
+  <node id="Subset(2)">
+    <operator>Subset</operator>
+    <sources>
+      <sourceProduct refid="Terrain-Correction(2)"/>
+    </sources>
+    <parameters class="com.bc.ceres.binding.dom.XppDomElement">
+      <sourceBands/>
+      <geoRegion>%%POLYGON_SUBSET%%</geoRegion>
+      <subSamplingX>1</subSamplingX>
+      <subSamplingY>1</subSamplingY>
+      <fullSwath>false</fullSwath>
+      <tiePointGridNames/>
+      <copyMetadata>true</copyMetadata>
+    </parameters>
+  </node>
   <node id="LinearToFromdB">
     <operator>LinearToFromdB</operator>
     <sources>
-      <sourceProduct refid="Terrain-Correction"/>
+      <sourceProduct refid="Subset"/>
     </sources>
     <parameters class="com.bc.ceres.binding.dom.XppDomElement">
       <sourceBands/>
@@ -208,7 +182,7 @@
   <node id="LinearToFromdB(2)">
     <operator>LinearToFromdB</operator>
     <sources>
-      <sourceProduct refid="Terrain-Correction(2)"/>
+      <sourceProduct refid="Subset(2)"/>
     </sources>
     <parameters class="com.bc.ceres.binding.dom.XppDomElement">
       <sourceBands/>
@@ -300,6 +274,26 @@
       <formatName>GeoTIFF-BigTIFF</formatName>
     </parameters>
   </node>
+  <node id="Write(5)">
+    <operator>Write</operator>
+    <sources>
+      <sourceProduct refid="LinearToFromdB"/>
+    </sources>
+    <parameters class="com.bc.ceres.binding.dom.XppDomElement">
+      <file>%%MASTER_OUTPUT_PHYSICAL%%</file>
+      <formatName>GeoTIFF-BigTIFF</formatName>
+    </parameters>
+  </node>
+  <node id="Write(6)">
+    <operator>Write</operator>
+    <sources>
+      <sourceProduct refid="LinearToFromdB(2)"/>
+    </sources>
+    <parameters class="com.bc.ceres.binding.dom.XppDomElement">
+      <file>%%SLAVE_OUTPUT_PHYSICAL%%</file>
+      <formatName>GeoTIFF-BigTIFF</formatName>
+    </parameters>
+  </node>
   <node id="CreateStack">
     <operator>CreateStack</operator>
     <sources>
@@ -382,12 +376,6 @@
     <node id="Subset(2)">
       <displayPosition x="458.0" y="195.0"/>
     </node>
-    <node id="Multilook">
-      <displayPosition x="536.0" y="40.0"/>
-    </node>
-    <node id="Multilook(2)">
-      <displayPosition x="563.0" y="192.0"/>
-    </node>
     <node id="Terrain-Correction">
       <displayPosition x="642.0" y="41.0"/>
     </node>
@@ -420,6 +408,12 @@
     </node>
     <node id="Write(3)">
       <displayPosition x="1014.0" y="116.0"/>
+    </node>
+    <node id="Write(5)">
+      <displayPosition x="1298.0" y="119.0"/>
+    </node>
+    <node id="Write(6)">
+      <displayPosition x="1298.0" y="119.0"/>
     </node>
     <node id="Apply-Orbit-File">
       <displayPosition x="118.0" y="95.0"/>
