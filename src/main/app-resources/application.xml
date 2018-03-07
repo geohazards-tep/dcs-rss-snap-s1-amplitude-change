@@ -23,7 +23,7 @@
       </defaultJobconf>         
     </jobTemplate>
   </jobTemplates>
-    <workflow id="snap_s1_amplitude_change" title="SNAC - SNAP S1 GRD Amplitude Change" abstract="The S-1 Amplitude change on-demand processing service provides RGB composite of backscattering from a pair Sentinel-1 GRD IW products (e.g. pre- and post-event) processed in SNAP.">
+    <workflow id="snap_s1_amplitude_change" title="SNAC - SNAP S1 GRD Amplitude Change" abstract="The S-1 Amplitude change on-demand processing service provides RGB composite of backscattering from a pair Sentinel-1 GRD IW and EW products (e.g. pre- and post-event) processed in SNAP.">
     <workflowVersion>1.0</workflowVersion>
     <node id="amplitude_change">
       <job id="amplitude_change"/>
