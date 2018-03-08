@@ -19,6 +19,7 @@ ERR_NO_ENCLOSURE=8
 ERR_GDAL_MERGE=9
 ERR_GDAL=10
 ERR_TAR=11
+ERR_MST_SLV_DIFFER=12
 
 # add a trap to exit gracefully
 function cleanExit ()
@@ -39,6 +40,7 @@ function cleanExit ()
 	${ERR_GDAL_MERGE})              msg="Failed to run gdal_merge.py";;
 	${ERR_GDAL})                    msg="Failed to run GDAL";;
 	${ERR_TAR})                     msg="Failed to run tar";;
+	${ERR_MST_SLV_DIFFER})		msg="Master and Slave input types differ";;
         *)                        	msg="Unknown error";;
     esac
 
@@ -101,8 +103,8 @@ res=$?
 [ $res -ne 0 ] && exit $ERR_NO_ENCLOSURE
 
 master_filename="${master_enclosure##*/}"
-chk_mst_GRD="${master_filename:4:6}"
-[[ "$chk_mst_GRD" == "IW_GRD" ]] || exit $ERR_WRONG_INPUT_TYPE
+chk_mst_GRD="${master_filename:7:3}"
+[[ "$chk_mst_GRD" == "GRD" ]] || exit $ERR_WRONG_INPUT_TYPE
 
 slave_enclosure="$(opensearch-client $slave enclosure)" 
 res=$?
@@ -110,8 +112,45 @@ res=$?
 [ $res -ne 0 ] && exit $ERR_NO_ENCLOSURE
 
 slave_filename="${slave_enclosure##*/}" 
-chk_slv_GRD="${slave_filename:4:6}"
-[[ "$chk_slv_GRD" == "IW_GRD" ]] || exit $ERR_WRONG_INPUT_TYPE
+chk_slv_GRD="${slave_filename:7:3}"
+[[ "$chk_slv_GRD" == "GRD" ]] || exit $ERR_WRONG_INPUT_TYPE
+
+#Retrieve acquisition mode (IW or EW)
+chk_mst_mode="${master_filename:4:2}"
+chk_slv_mode="${slave_filename:4:2}"
+[[ "$chk_mst_mode" == "$chk_slv_mode" ]] || exit $ERR_MST_SLV_DIFFER
+prod_mst_slv_mode="$chk_mst_mode"
+if [[ "$prod_mst_slv_mode" != "IW" ]] && [[ "$prod_mst_slv_mode" != "EW" ]]; then 
+	exit $ERR_WRONG_INPUT_TYPE
+fi
+
+#Retrieve resolution
+chk_mst_res="${master_filename:7:4}"
+chk_slv_res="${slave_filename:7:4}"
+[[ "$chk_mst_res" == "$chk_slv_res" ]] || exit $ERR_MST_SLV_DIFFER
+prod_mst_slv_res="$chk_mst_res"
+ciop-log "DEBUG" "Checking input product pixel spacing"
+input_pixel_spacing=
+case ${prod_mst_slv_res} in
+	GRDH)	#Check also acquisition mode
+		ciop-log "DEBUG" "Retrieving input pixel spacing for GRDH product"
+		if [[ "$prod_mst_slv_mode" == "IW" ]]; then
+			input_pixel_spacing="10"
+		elif [[ "$prod_mst_slv_mode" == "EW" ]]; then
+			input_pixel_spacing="25"
+		else
+			exit $ERR_WRONG_INPUT_TYPE
+		fi
+		;;
+	 GRDM)	#For GRDM IW and EW have the same pixel spacing 
+		ciop-log "DEBUG" "Retrieving input pixel spacing for GRDM product"
+		input_pixel_spacing="40"
+		;;
+	*)	ciop-log "DEBUG" "Input product resolution is not GRDH or GRDM"
+		exit $ERR_WRONG_INPUT_TYPE
+		;;
+esac
+ciop-log "DEBUG" "Input product pixel spacing is: $input_pixel_spacing "
 
 # Check bounding box
 # Perform subsetting if SubsetBoundingBox variable is not empty
@@ -188,6 +227,24 @@ if [[ ! "$pixelSpacingInMeter" =~ ^[0-9]*\.?[0-9]*$ ]]; then
 	exit ${ERR_WRONG_PIXEL_SPACING}
 fi
 
+#Check if multilooking is needed and define multilooking factor
+ciop-log "INFO" "Checking if multilooking is needed"
+perform_multilook="false"
+multilook_factor=
+pixelSpacingInMeter_int="${pixelSpacingInMeter%%.*}"
+if [[ "$pixelSpacingInMeter_int" -gt "$input_pixel_spacing" ]]; then
+	multilook_factor="$(( $pixelSpacingInMeter_int / $input_pixel_spacing ))"
+	ciop-log "DEBUG" "PixelSpacing(int): $pixelSpacingInMeter_int ; InputProductPixelSpacing: $input_pixel_spacing ; ML factor: $multilook_factor " 
+	if [[ "$multilook_factor" -gt "1" ]]; then 
+		perform_multilook="true"
+	fi
+fi
+if [[ "$perform_multilook" == "true" ]]; then
+	ciop-log "INFO" "Multilooking is needed. ML factor = $multilook_factor "
+else
+	ciop-log "INFO" "Multilooking is not needed."
+fi
+
 ###########################################################################################
 
 
@@ -216,23 +273,34 @@ res=$?
 ciop-log "INFO" "Building SNAP graph request xml"
 SNAP_gpt_template=
 if [[ "$perform_subset" == "true" ]]; then
-	SNAP_gpt_template="$_CIOP_APPLICATION_PATH/amplitude_change/templates/Orb_Cal_Sub_ML_TC_BM_BM_Stack_Graph.xml"
+	if [[ "$perform_multilook" == "true" ]]; then
+		SNAP_gpt_template="$_CIOP_APPLICATION_PATH/amplitude_change/templates/Orb_Cal_ML_TC_Sub_BM_BM_Stack_Graph.xml"
+	else
+		SNAP_gpt_template="$_CIOP_APPLICATION_PATH/amplitude_change/templates/Orb_Cal_TC_Sub_BM_BM_Stack_Graph.xml"
+	fi
 else
-	SNAP_gpt_template="$_CIOP_APPLICATION_PATH/amplitude_change/templates/Orb_Cal_ML_TC_BM_BM_Stack_Graph.xml"
+	if [[ "$perform_multilook" == "true" ]]; then
+		SNAP_gpt_template="$_CIOP_APPLICATION_PATH/amplitude_change/templates/Orb_Cal_ML_TC_BM_BM_Stack_Graph.xml"
+	else
+		SNAP_gpt_template="$_CIOP_APPLICATION_PATH/amplitude_change/templates/Orb_Cal_TC_BM_BM_Stack_Graph.xml"
+	fi
 fi
+
 
 # Define output filenames
 mkdir -p ${TMPDIR}/output
 export OUTPUTDIR=${TMPDIR}/output
 master_date="${master_filename:17:8}"
 slave_date="${slave_filename:17:8}"
-outputname="S1_IW_GRD_${polarisation}_${master_date}_${slave_date}.tif"
+outputname="S1_GRD_${polarisation}_${master_date}_${slave_date}_RGB_Amplitude_Change.tif"
 OUTPUTFILE="${OUTPUTDIR}/${outputname}"
-rgb_outputname="${outputname%.tif}_RGB_Amplitude_Change.tif"
+rgb_outputname="${outputname%.tif}.RGB.tif"
 MASTER_SIGMA="${TMPDIR}/${master_filename%%.*}.tif"
 SLAVE_SIGMA="${TMPDIR}/${slave_filename%%.*}.tif"
-MASTER_OUTPUT="${OUTPUTDIR}/${master_filename%%.*}_Orb_Cal_ML_TC_DB.tif"
-SLAVE_OUTPUT="${OUTPUTDIR}/${slave_filename%%.*}_Orb_Cal_ML_TC_DB.tif"
+MASTER_OUTPUT_PHYSICAL="${OUTPUTDIR}/${master_filename%%.*}_Orb_Cal_ML_TC_DB.tif"
+SLAVE_OUTPUT_PHYSICAL="${OUTPUTDIR}/${slave_filename%%.*}_Orb_Cal_ML_TC_DB.tif"
+MASTER_OUTPUT="${OUTPUTDIR}/${master_filename%%.*}_Orb_Cal_ML_TC_DB.RGB.tif"
+SLAVE_OUTPUT="${OUTPUTDIR}/${slave_filename%%.*}_Orb_Cal_ML_TC_DB.RGB.tif"
 STACK_RESCALED="${TMPDIR}/BM_stack_rescaled.tif"
 
 # Fill SNAP gpt template request
@@ -242,8 +310,11 @@ sed -e "s|%%MASTER%%|${master_local_file}|g" \
     -e "s|%%POLYGON_SUBSET%%|${subset_wkt_polygon}|g" \
     -e "s|%%polarisation%%|${polarisation}|g" \
     -e "s|%%pixelSpacingInMeter%%|${pixelSpacingInMeter}|g" \
+    -e "s|%%multilook_factor%%|${multilook_factor}|g" \
     -e "s|%%MASTER_SIGMA%%|${MASTER_SIGMA}|g" \
     -e "s|%%SLAVE_SIGMA%%|${SLAVE_SIGMA}|g" \
+    -e "s|%%MASTER_OUTPUT_PHYSICAL%%|${MASTER_OUTPUT_PHYSICAL}|g" \
+    -e "s|%%SLAVE_OUTPUT_PHYSICAL%%|${SLAVE_OUTPUT_PHYSICAL}|g" \
     -e "s|%%STACK_RESCALED%%|${STACK_RESCALED}|g" \
     -e "s|%%OUTPUT%%|${OUTPUTFILE}|g" $SNAP_gpt_template > $SNAP_gpt_request
 
@@ -261,45 +332,31 @@ res=$?
 
 # Run gdal_merge.py to generate RGB composite
 RGB_TEMP="${TMPDIR}/rgb_temp_amp_change.tif"
-if [[ "$perform_subset" == "true" ]]; then
 
- ciop-log "INFO" "Run gdal_merge.py to generate RGB"
- gdal_merge.py -separate -n 0 -co "PHOTOMETRIC=RGB" -co "ALPHA=YES" ${MASTER_SIGMA} ${SLAVE_SIGMA} ${SLAVE_SIGMA} -o ${RGB_TEMP}
- [ $? -eq 0 ] || exit ${ERR_GDAL_MERGE}
+ciop-log "INFO" "Run gdal_merge.py to stack the tif files"
+STACK_RESCALED_2="${STACK_RESCALED%.*}_2.tif"
+gdal_merge.py -separate -n 0 -co "ALPHA=YES" ${MASTER_SIGMA} ${SLAVE_SIGMA} -o ${STACK_RESCALED_2}
+[ $? -eq 0 ] || exit ${ERR_GDAL}
 
-else
+SNAP_gpt_common="$_CIOP_APPLICATION_PATH/amplitude_change/templates/common_area_graph.xml"
+SNAP_gpt_common_request="${TMPDIR}/common_area_graph.xml"
+OUTPUTSTACK="${TMPDIR}/OUTPUTSTACK.tif"
+sed -e "s|%%STACK_RESCALED_2%%|${STACK_RESCALED_2}|g" \
+    -e "s|%%OUTPUTSTACK%%|${OUTPUTSTACK}|g" $SNAP_gpt_common > $SNAP_gpt_common_request
 
- ciop-log "INFO" "Run gdal_merge.py to stack the tif files"
- STACK_RESCALED_2="${STACK_RESCALED%.*}_2.tif"
- gdal_merge.py -separate -n 0 -co "ALPHA=YES" ${MASTER_SIGMA} ${SLAVE_SIGMA} -o ${STACK_RESCALED_2}
- [ $? -eq 0 ] || exit ${ERR_GDAL}
-
- SNAP_gpt_common="$_CIOP_APPLICATION_PATH/amplitude_change/templates/common_area_graph.xml"
- SNAP_gpt_common_request="${TMPDIR}/common_area_graph.xml"
- OUTPUTSTACK="${TMPDIR}/OUTPUTSTACK.tif"
- sed -e "s|%%STACK_RESCALED_2%%|${STACK_RESCALED_2}|g" \
-     -e "s|%%OUTPUTSTACK%%|${OUTPUTSTACK}|g" $SNAP_gpt_common > $SNAP_gpt_common_request
-
- ciop-log "INFO" "Execute SNAP processing graph common area"
- gpt $SNAP_gpt_common_request -c "${CACHE_SIZE}" #&> /dev/null
- res=$?
- [ $res -ne 0 ] && exit ${ERR_SNAP}
+ciop-log "INFO" "Execute SNAP processing graph common area"
+gpt $SNAP_gpt_common_request -c "${CACHE_SIZE}" #&> /dev/null
+res=$?
+[ $res -ne 0 ] && exit ${ERR_SNAP}
  
- ciop-log "INFO" "Run gdal_translate to generate RGB"
-# gdal_translate -ot Byte -of GTiff -b 1 -b 2 -b 2 -a_nodata 0 -co "PHOTOMETRIC=RGB" -co "ALPHA=YES" ${STACK_RESCALED} ${RGB_TEMP}
- gdal_translate -ot Byte -of GTiff -b 1 -b 2 -b 2 -a_nodata 0 -co "PHOTOMETRIC=RGB" -co "ALPHA=YES" ${OUTPUTSTACK} ${RGB_TEMP}
- [ $? -eq 0 ] || exit ${ERR_GDAL}
+ciop-log "INFO" "Run gdal_translate to generate RGB"
+gdal_translate -ot Byte -of GTiff -b 1 -b 2 -b 2 -a_nodata 0 -co "PHOTOMETRIC=RGB" -co "ALPHA=YES" ${OUTPUTSTACK} ${RGB_TEMP}
+[ $? -eq 0 ] || exit ${ERR_GDAL}
 
- ###TO REMOVE DEBUG ONLY ####
- mv ${STACK_RESCALED} /tmp/
- mv $OUTPUTSTACK /tmp/
-
-fi
 
 # gdal_warp
 ciop-log "INFO" "Running gdalwarp for RGB product"
 gdalwarp -ot Byte -t_srs EPSG:3857 -srcnodata 0 -dstnodata 0 -dstalpha -co "ALPHA=YES" ${RGB_TEMP} ${OUTPUTDIR}/${rgb_outputname}
-#gdalwarp -ot Byte -srcnodata 0 -dstnodata 0 -dstalpha -co "ALPHA=YES" ${RGB_TEMP} ${OUTPUTDIR}/${rgb_outputname}
 returnCode=$?
 [ $returnCode -eq 0 ] || exit ${ERR_GDAL}
 
@@ -314,7 +371,6 @@ returnCode=$?
 # gdal_warp
 ciop-log "INFO" "Running gdalwarp for Master product"
 gdalwarp -ot Byte -t_srs EPSG:3857 -srcnodata 0 -dstnodata 0 -dstalpha -co "ALPHA=YES" ${MASTER_SIGMA} ${MASTER_OUTPUT}
-#gdalwarp -ot Byte -srcnodata 0 -dstnodata 0 -dstalpha -co "ALPHA=YES" ${MASTER_SIGMA} ${MASTER_OUTPUT}
 returnCode=$?
 [ $returnCode -eq 0 ] || exit ${ERR_GDAL}
 #Add overviews gdaladdo
@@ -328,7 +384,6 @@ rm -f ${MASTER_SIGMA}
 # gdal_warp
 ciop-log "INFO" "Running gdalwarp for Slave product"
 gdalwarp -ot Byte -t_srs EPSG:3857 -srcnodata 0 -dstnodata 0 -dstalpha -co "ALPHA=YES" ${SLAVE_SIGMA} ${SLAVE_OUTPUT}
-#gdalwarp -ot Byte -srcnodata 0 -dstnodata 0 -dstalpha -co "ALPHA=YES" ${SLAVE_SIGMA} ${SLAVE_OUTPUT}
 returnCode=$?
 [ $returnCode -eq 0 ] || exit ${ERR_GDAL}
 #Add overviews gdaladdo
@@ -339,12 +394,6 @@ returnCode=$?
 rm -f ${SLAVE_SIGMA}
 
 
-# Package the stacked product
-tar czf ${OUTPUTFILE%.*}.tgz ${OUTPUTFILE}
-returnCode=$?
-[ $returnCode -eq 0 ] || exit 
-rm -f ${OUTPUTFILE}
-
 ###########################################################################################
 
 
@@ -353,8 +402,8 @@ rm -f ${OUTPUTFILE}
 ###########################################################################################
 processing_time=$(date)
 # RGB product properties file 
-cat <<EOF > ${OUTPUTDIR}/${rgb_outputname%.*}.properties
-title=${rgb_outputname}
+cat <<EOF > ${OUTPUTDIR}/${rgb_outputname%%.*}.properties
+title=${outputname}
 Description=SNAP S1 GRD Amplitude Change RGB
 Master_Product=${master_filename%%.*}
 Slave_Product=${slave_filename%%.*}
@@ -366,8 +415,8 @@ Processing_Time=${processing_time}
 EOF
 
 # Master product properties file
-cat <<EOF > ${MASTER_OUTPUT%.*}.properties
-title=${MASTER_OUTPUT##*/}
+cat <<EOF > ${MASTER_OUTPUT%.RGB.tif}.properties
+title=${MASTER_OUTPUT_PHYSICAL##*/}
 Description=Master Product 
 Master_Product=${master_filename%%.*}
 Master_Date=${master_date}
@@ -377,22 +426,11 @@ Processing_Time=${processing_time}
 EOF
 
 # Slave product properties file
-cat <<EOF > ${SLAVE_OUTPUT%.*}.properties
-title=${SLAVE_OUTPUT##*/}
+cat <<EOF > ${SLAVE_OUTPUT%.RGB.tif}.properties
+title=${SLAVE_OUTPUT_PHYSICAL##*/}
 Description=Slave Product
 Slave_Product=${slave_filename%%.*}
 Slave_Date=${slave_date}
-Polarisation=${polarisation}
-Pixel_Spacing=${pixelSpacingInMeter}
-Processing_Time=${processing_time}
-EOF
-
-# Stack product properties file
-STACK_BACKSCATTER=${OUTPUTFILE%.*}.tgz
-STACK_BACKSCATTER_BASENAME="${STACK_BACKSCATTER##*/}"
-cat <<EOF > ${OUTPUTFILE%.*}.properties
-title=${STACK_BACKSCATTER_BASENAME}
-Description=Backscatter Master and slave Stack
 Polarisation=${polarisation}
 Pixel_Spacing=${pixelSpacingInMeter}
 Processing_Time=${processing_time}

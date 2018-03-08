@@ -74,36 +74,10 @@
       <outputBetaBand>false</outputBetaBand>
     </parameters>
   </node>
-  <node id="Multilook">
-    <operator>Multilook</operator>
-    <sources>
-      <sourceProduct refid="Calibration"/>
-    </sources>
-    <parameters class="com.bc.ceres.binding.dom.XppDomElement">
-      <sourceBands/>
-      <nRgLooks>%%multilook_factor%%</nRgLooks>
-      <nAzLooks>%%multilook_factor%%</nAzLooks>
-      <outputIntensity>true</outputIntensity>
-      <grSquarePixel>true</grSquarePixel>
-    </parameters>
-  </node>
-  <node id="Multilook(2)">
-    <operator>Multilook</operator>
-    <sources>
-      <sourceProduct refid="Calibration(2)"/>
-    </sources>
-    <parameters class="com.bc.ceres.binding.dom.XppDomElement">
-      <sourceBands/>
-      <nRgLooks>%%multilook_factor%%</nRgLooks>
-      <nAzLooks>%%multilook_factor%%</nAzLooks>
-      <outputIntensity>true</outputIntensity>
-      <grSquarePixel>true</grSquarePixel>
-    </parameters>
-  </node>
   <node id="Terrain-Correction">
     <operator>Terrain-Correction</operator>
     <sources>
-      <sourceProduct refid="Multilook"/>
+      <sourceProduct refid="Calibration"/>
     </sources>
     <parameters class="com.bc.ceres.binding.dom.XppDomElement">
       <sourceBands/>
@@ -136,7 +110,7 @@
   <node id="Terrain-Correction(2)">
     <operator>Terrain-Correction</operator>
     <sources>
-      <sourceProduct refid="Multilook(2)"/>
+      <sourceProduct refid="Calibration(2)"/>
     </sources>
     <parameters class="com.bc.ceres.binding.dom.XppDomElement">
       <sourceBands/>
@@ -390,12 +364,6 @@
     <node id="Calibration(2)">
       <displayPosition x="333.0" y="191.0"/>
     </node>
-    <node id="Multilook">
-      <displayPosition x="536.0" y="40.0"/>
-    </node>
-    <node id="Multilook(2)">
-      <displayPosition x="563.0" y="192.0"/>
-    </node>
     <node id="Terrain-Correction">
       <displayPosition x="642.0" y="41.0"/>
     </node>
@@ -441,14 +409,14 @@
     <node id="Write(4)">
       <displayPosition x="1298.0" y="119.0"/>
     </node>
-    <node id="Write">
-      <displayPosition x="1220.0" y="42.0"/>
-    </node>
     <node id="Write(5)">
       <displayPosition x="1298.0" y="119.0"/>
     </node>
     <node id="Write(6)">
       <displayPosition x="1298.0" y="119.0"/>
+    </node>
+    <node id="Write">
+      <displayPosition x="1220.0" y="42.0"/>
     </node>
   </applicationData>
 </graph>
