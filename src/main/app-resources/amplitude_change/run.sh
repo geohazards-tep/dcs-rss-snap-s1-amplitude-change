@@ -302,6 +302,12 @@ SLAVE_OUTPUT_PHYSICAL="${OUTPUTDIR}/${slave_filename%%.*}_Orb_Cal_ML_TC_DB.tif"
 MASTER_OUTPUT="${OUTPUTDIR}/${master_filename%%.*}_Orb_Cal_ML_TC_DB.RGB.tif"
 SLAVE_OUTPUT="${OUTPUTDIR}/${slave_filename%%.*}_Orb_Cal_ML_TC_DB.RGB.tif"
 STACK_RESCALED="${TMPDIR}/BM_stack_rescaled.tif"
+RGB_LEGEND="${OUTPUTDIR}/${rgb_outputname%%.*}.legend.png"
+BROWSE_RGB_PNG="${OUTPUTDIR}/${rgb_outputname%.tif}.png"
+
+# Legend  template
+LEGEND_TEMPLATE="$_CIOP_APPLICATION_PATH/amplitude_change/snac.legend.png"
+
 
 # Fill SNAP gpt template request
 SNAP_gpt_request="${TMPDIR}/Graph.xml"
@@ -349,8 +355,8 @@ gpt $SNAP_gpt_common_request -c "${CACHE_SIZE}" #&> /dev/null
 res=$?
 [ $res -ne 0 ] && exit ${ERR_SNAP}
  
-ciop-log "INFO" "Run gdal_translate to generate RGB"
-gdal_translate -ot Byte -of GTiff -b 1 -b 2 -b 2 -a_nodata 0 -co "PHOTOMETRIC=RGB" -co "ALPHA=YES" ${OUTPUTSTACK} ${RGB_TEMP}
+ciop-log "INFO" "Run gdal_translate to generate RGB Tiff"
+gdal_translate -ot Byte -of GTiff -b 2 -b 1 -b 1 -a_nodata 0 -co "PHOTOMETRIC=RGB" -co "ALPHA=YES" ${OUTPUTSTACK} ${RGB_TEMP}
 [ $? -eq 0 ] || exit ${ERR_GDAL}
 
 
@@ -360,12 +366,23 @@ gdalwarp -ot Byte -t_srs EPSG:3857 -srcnodata 0 -dstnodata 0 -dstalpha -co "ALPH
 returnCode=$?
 [ $returnCode -eq 0 ] || exit ${ERR_GDAL}
 
+# Create PNG
+ciop-log "INFO" "Run gdal_translate to generate Browse PNG"
+gdal_translate -of PNG ${OUTPUTDIR}/${rgb_outputname} $BROWSE_RGB_PNG
+returnCode=$?
+[ $returnCode -eq 0 ] || exit ${ERR_GDAL}
+
 #Add overviews gdaladdo
 ciop-log "INFO" "Running gdaladdo for RGB product"
 gdaladdo -r average ${OUTPUTDIR}/${rgb_outputname} 2 4 8 16
 returnCode=$?
 [ $returnCode -eq 0 ] || exit ${ERR_GDAL}
 
+#Copy legend template into the RGM output legend
+cp -f $LEGEND_TEMPLATE $RGB_LEGEND
+if [[ -e "${RGB_LEGEND}.aux.xml" ]]; then
+	rm -f ${RGB_LEGEND}.aux.xml
+fi
 
 # Run gdal commands Master product
 # gdal_warp
@@ -394,6 +411,10 @@ returnCode=$?
 rm -f ${SLAVE_SIGMA}
 
 
+# Remove Stack Tiff output not desired
+ciop-log "INFO" "Removing Stack Tiff product ${OUTPUTFILE##*/}"
+rm -f $OUTPUTFILE
+
 ###########################################################################################
 
 
@@ -404,7 +425,7 @@ processing_time=$(date)
 # RGB product properties file 
 cat <<EOF > ${OUTPUTDIR}/${rgb_outputname%%.*}.properties
 title=${outputname}
-Description=SNAP S1 GRD Amplitude Change RGB
+Description=Amplitude Change RGB Composite - R=Slave G=Master B=Master 
 Master_Product=${master_filename%%.*}
 Slave_Product=${slave_filename%%.*}
 Master_Date=${master_date}
