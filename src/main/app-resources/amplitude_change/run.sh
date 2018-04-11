@@ -380,8 +380,10 @@ returnCode=$?
 
 #Copy legend template into the RGM output legend
 cp -f $LEGEND_TEMPLATE $RGB_LEGEND
-if [[ -e "${RGB_LEGEND}.aux.xml" ]]; then
-	rm -f ${RGB_LEGEND}.aux.xml
+
+#Remove PNG aux.xml file
+if [[ -e "${BROWSE_RGB_PNG}.aux.xml" ]]; then
+	rm -f ${BROWSE_RGB_PNG}.aux.xml
 fi
 
 # Run gdal commands Master product
