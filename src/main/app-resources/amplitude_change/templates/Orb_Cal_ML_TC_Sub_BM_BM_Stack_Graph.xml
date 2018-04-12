@@ -14,7 +14,7 @@
       <file>%%SLAVE%%</file>
     </parameters>
   </node>
-  <node id="Remove-GRD-Border-Noise">
+<!--  <node id="Remove-GRD-Border-Noise">
     <operator>Remove-GRD-Border-Noise</operator>
     <sources>
       <sourceProduct refid="Apply-Orbit-File"/>
@@ -35,11 +35,11 @@
       <borderLimit>500</borderLimit>
       <trimThreshold>0.5</trimThreshold>
     </parameters>
-  </node>
+  </node>                                         -->
   <node id="Calibration">
     <operator>Calibration</operator>
     <sources>
-      <sourceProduct refid="Remove-GRD-Border-Noise"/>
+      <sourceProduct refid="Apply-Orbit-File"/>
     </sources>
     <parameters class="com.bc.ceres.binding.dom.XppDomElement">
       <sourceBands/>
@@ -58,7 +58,7 @@
   <node id="Calibration(2)">
     <operator>Calibration</operator>
     <sources>
-      <sourceProduct refid="Remove-GRD-Border-Noise(2)"/>
+      <sourceProduct refid="Apply-Orbit-File(2)"/>
     </sources>
     <parameters class="com.bc.ceres.binding.dom.XppDomElement">
       <sourceBands/>
@@ -115,7 +115,7 @@
       <imgResamplingMethod>BILINEAR_INTERPOLATION</imgResamplingMethod>
       <pixelSpacingInMeter>%%pixelSpacingInMeter%%</pixelSpacingInMeter>
       <mapProjection>WGS84(DD)</mapProjection>
-      <nodataValueAtSea>true</nodataValueAtSea>
+      <nodataValueAtSea>false</nodataValueAtSea>
       <saveDEM>false</saveDEM>
       <saveLatLon>false</saveLatLon>
       <saveIncidenceAngleFromEllipsoid>false</saveIncidenceAngleFromEllipsoid>
@@ -148,7 +148,7 @@
       <imgResamplingMethod>BILINEAR_INTERPOLATION</imgResamplingMethod>
       <pixelSpacingInMeter>%%pixelSpacingInMeter%%</pixelSpacingInMeter>
       <mapProjection>WGS84(DD)</mapProjection>
-      <nodataValueAtSea>true</nodataValueAtSea>
+      <nodataValueAtSea>false</nodataValueAtSea>
       <saveDEM>false</saveDEM>
       <saveLatLon>false</saveLatLon>
       <saveIncidenceAngleFromEllipsoid>false</saveIncidenceAngleFromEllipsoid>
@@ -384,12 +384,12 @@
     <node id="Read(2)">
       <displayPosition x="27.0" y="190.0"/>
     </node>
-    <node id="Remove-GRD-Border-Noise">
+<!--    <node id="Remove-GRD-Border-Noise">
       <displayPosition x="113.0" y="40.0"/>
     </node>
     <node id="Remove-GRD-Border-Noise(2)">
       <displayPosition x="109.0" y="191.0"/>
-    </node>
+    </node>                                       -->
     <node id="Calibration">
       <displayPosition x="323.0" y="39.0"/>
     </node>
