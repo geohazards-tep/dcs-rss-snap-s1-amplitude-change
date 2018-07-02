@@ -102,7 +102,8 @@ res=$?
 [ $res -eq 0 ] && [ -z "${master_enclosure}" ] && exit $ERR_NO_ENCLOSURE
 [ $res -ne 0 ] && exit $ERR_NO_ENCLOSURE
 
-master_filename="${master_enclosure##*/}"
+master_filename="${master_enclosure%/}"
+master_filename="${master_filename##*/}"
 chk_mst_GRD="${master_filename:7:3}"
 [[ "$chk_mst_GRD" == "GRD" ]] || exit $ERR_WRONG_INPUT_TYPE
 
@@ -111,7 +112,8 @@ res=$?
 [ $res -eq 0 ] && [ -z "${slave_enclosure}" ] && exit $ERR_NO_ENCLOSURE
 [ $res -ne 0 ] && exit $ERR_NO_ENCLOSURE
 
-slave_filename="${slave_enclosure##*/}" 
+slave_filename="${slave_enclosure%/}"
+slave_filename="${slave_filename##*/}" 
 chk_slv_GRD="${slave_filename:7:3}"
 [[ "$chk_slv_GRD" == "GRD" ]] || exit $ERR_WRONG_INPUT_TYPE
 
@@ -253,15 +255,27 @@ fi
 ###########################################################################################
 # Retrieve master product
 ciop-log "INFO" "Retrieving master product"
-master_local_file="$( echo ${master_enclosure} | ciop-copy -f -U -O ${TMPDIR} - 2> ${TMPDIR}/ciop_copy.stderr )"
+ciop-log "INFO" "Master product enclosure:  ${master_enclosure} "
+mkdir ${TMPDIR}/master
+master_local_file="$( echo ${master_enclosure} | ciop-copy -f -U -O ${TMPDIR}/master/ - 2> ${TMPDIR}/ciop_copy.stderr )"
 res=$?
 [ ${res} -ne 0 ] && exit ${ERR_NODATA}
 
+if [[ -d "$master_local_file" ]]; then 
+	master_local_file=$(find ${master_local_file}/ -name 'manifest.safe')
+fi
+
 # Retrieve slave product
 ciop-log "INFO" "Retrieving slave product"
-slave_local_file="$( echo ${slave_enclosure} | ciop-copy -f -U -O ${TMPDIR} - 2> ${TMPDIR}/ciop_copy.stderr )"
+ciop-log "INFO" "Slave product enclosure:  ${slave_enclosure} "
+mkdir ${TMPDIR}/slave
+slave_local_file="$( echo ${slave_enclosure} | ciop-copy -f -U -O ${TMPDIR}/slave/ - 2> ${TMPDIR}/ciop_copy.stderr )"
 res=$?
 [ ${res} -ne 0 ] && exit ${ERR_NODATA}
+
+if [[ -d "$slave_local_file" ]]; then
+	slave_local_file=$(find ${slave_local_file}/ -name 'manifest.safe')
+fi
 
 ###########################################################################################
 
