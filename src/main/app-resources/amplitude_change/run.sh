@@ -257,7 +257,7 @@ fi
 ciop-log "INFO" "Retrieving master product"
 ciop-log "INFO" "Master product enclosure:  ${master_enclosure} "
 mkdir ${TMPDIR}/master
-master_local_file="$( echo ${master_enclosure} | ciop-copy -f -U -O ${TMPDIR}/master/ - 2> ${TMPDIR}/ciop_copy.stderr )"
+master_local_file="$( echo ${master_enclosure} | ciop-copy -f -O ${TMPDIR}/master/ - 2> ${TMPDIR}/ciop_copy.stderr )"
 res=$?
 [ ${res} -ne 0 ] && exit ${ERR_NODATA}
 
@@ -269,7 +269,7 @@ fi
 ciop-log "INFO" "Retrieving slave product"
 ciop-log "INFO" "Slave product enclosure:  ${slave_enclosure} "
 mkdir ${TMPDIR}/slave
-slave_local_file="$( echo ${slave_enclosure} | ciop-copy -f -U -O ${TMPDIR}/slave/ - 2> ${TMPDIR}/ciop_copy.stderr )"
+slave_local_file="$( echo ${slave_enclosure} | ciop-copy -f -O ${TMPDIR}/slave/ - 2> ${TMPDIR}/ciop_copy.stderr )"
 res=$?
 [ ${res} -ne 0 ] && exit ${ERR_NODATA}
 

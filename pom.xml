@@ -11,7 +11,7 @@
     <version>2.0.0</version>
   </parent>
   <description>SNAP S1 GRD Amplitude Change service</description>
-  <version>1.5.1-SNAPSHOT</version>
+  <version>1.5.2-SNAPSHOT</version>
   <properties>
     <summary>SNAP S1 GRD Amplitude Change service</summary>
     <description>SNAP S1 GRD Amplitude Change service</description>
