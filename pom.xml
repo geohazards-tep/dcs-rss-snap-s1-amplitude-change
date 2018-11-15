@@ -8,7 +8,7 @@
   <parent>
     <groupId>com.terradue</groupId>
     <artifactId>dcs-bash-parent</artifactId>
-    <version>3.0.0-docker</version>
+    <version>3.0.1-docker</version>
   </parent>
   <description>SNAP S1 GRD Amplitude Change service</description>
   <version>1.5.2</version>

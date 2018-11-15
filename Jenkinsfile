@@ -4,6 +4,10 @@ pipeline {
     buildDiscarder(logRotator(numToKeepStr: '5'))
   }
 
+  environment {
+        PATH="/opt/anaconda/bin:$PATH"
+  }
+
   agent {
     node {
       label 'ci-community-docker'
